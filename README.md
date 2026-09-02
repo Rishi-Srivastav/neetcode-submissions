@@ -134,6 +134,9 @@ TreeNode lca(TreeNode node, TreeNode p, TreeNode q) {
 
 **Signal:** "k largest/smallest," "running median," "kth something in a stream."
 
+Trade-offs: Max-Heap vs. Min-HeapWhile a Max-Heap works well, a Min-Heap approach is often preferred if k is much smaller than n. A Min-Heap approach is better because it uses significantly less memory and runs faster when the array size (\(n\)) is large, and you only need a few top elements (\(k\)).Instead of putting all \(n\) elements into a heap, you maintain a heap containing only \(k\) elements.
+
+** Summary Rule of Thumb ** :To find k Largest -> Use a Min-Heap of size k.To find k Smallest -> Use a Max-Heap of size k.
 **Template (top-k via min-heap of size k):**
 ```java
 PriorityQueue<Integer> minHeap = new PriorityQueue<>();
