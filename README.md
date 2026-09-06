@@ -213,6 +213,372 @@ boolean hasCycle(int node, int[] state, List<List<Integer>> adj) {
 
 **Repo problems:** `count-number-of-islands`, `clone-graph`, `course-schedule`, `pacific-atlantic-water-flow`, `valid-tree`, `count-paths`
 
+
+## 5. Tree Recursion (DFS on Trees)
+
+Signal: Anything on a binary tree — depth, comparison, subtree, validation, ancestor. Most tree problems are "recurse on left, recurse on right, combine."
+
+Template (generic recursive shape):
+
+```java
+int solve(TreeNode node) {
+    if (node == null) return baseCase;
+
+    int left = solve(node.left);
+    int right = solve(node.right);
+
+    return combine(node.val, left, right);
+}
+```
+
+Key idea: Before writing recursion, define exactly what the recursive call returns — boolean, depth, node, etc. Then define the base case and combine the left/right results.
+
+### Tree comparison
+
+For problems like `same-binary-tree`, compare the two trees at the same time:
+
+```java
+boolean same(TreeNode p, TreeNode q) {
+    if (p == null && q == null) return true;
+    if (p == null || q == null) return false;
+    if (p.val != q.val) return false;
+
+    return same(p.left, q.left) &&
+           same(p.right, q.right);
+}
+```
+
+For `subtree-of-a-binary-tree`, use the same comparison as a helper and try every node as a possible root of the subtree.
+
+Key idea: `subtree` is really two problems:
+
+1. Traverse the main tree looking for a candidate root.
+2. Compare the candidate subtree with the target tree.
+
+### BST validation — carry constraints down the tree
+
+Signal: "Is this binary tree a valid BST?"
+
+Do **not** only compare a node with its immediate children. A node must satisfy the ordering constraints imposed by **all its ancestors**.
+
+```java
+boolean isValidBST(TreeNode root) {
+    return bst(root, Long.MIN_VALUE, Long.MAX_VALUE);
+}
+
+boolean bst(TreeNode node, long min, long max) {
+    if (node == null) return true;
+
+    if (node.val <= min || node.val >= max)
+        return false;
+
+    return bst(node.left, min, node.val) &&
+           bst(node.right, node.val, max);
+}
+```
+
+Key idea: every recursive call carries the valid range for that subtree.
+
+* Going left → upper bound becomes `node.val`
+* Going right → lower bound becomes `node.val`
+
+This catches cases such as a value being smaller than its parent but still invalid because it violates a grandparent's constraint. The repo solution uses exactly this min/max-bound technique.
+
+### BST-specific LCA
+
+Signal: Lowest common ancestor in a **BST**.
+
+Use the BST ordering property instead of traversing the whole tree:
+
+```java
+TreeNode lca(TreeNode root, TreeNode p, TreeNode q) {
+    if (p.val < root.val && q.val < root.val)
+        return lca(root.left, p, q);
+
+    if (p.val > root.val && q.val > root.val)
+        return lca(root.right, p, q);
+
+    return root;
+}
+```
+
+Key idea: if both nodes are on the same side, move there. Otherwise the current node is the split point and therefore the LCA.
+
+This gives `O(h)` time instead of traversing the entire tree. The repo solution follows this exact split-point approach.
+
+Repo problems: `depth-of-binary-tree`, `invert-a-binary-tree`, `same-binary-tree`, `subtree-of-a-binary-tree`, `valid-binary-search-tree`, `lowest-common-ancestor-in-binary-search-tree`
+
+---
+
+## 8. Graph Traversal (DFS/BFS, Connected Components, Cycle Detection)
+
+Signal: Adjacency list, grid of cells, "is it connected," "count regions," "can I reach," dependencies/prerequisites, or cloning a graph.
+
+### Graph representation
+
+For an edge list:
+
+```java
+List<List<Integer>> graph = new ArrayList<>();
+
+for (int i = 0; i < n; i++)
+    graph.add(new ArrayList<>());
+
+for (int[] edge : edges) {
+    graph.get(edge[0]).add(edge[1]);
+    graph.get(edge[1]).add(edge[0]); // undirected
+}
+```
+
+Key idea: convert the edge list into an adjacency list first. After that, most graph problems become DFS/BFS over neighbors.
+
+### Connected components
+
+Signal: "How many disconnected groups/components are there?"
+
+Pattern:
+
+```java
+boolean[] visited = new boolean[n];
+int count = 0;
+
+for (int i = 0; i < n; i++) {
+    if (!visited[i]) {
+        dfs(i);
+        count++;
+    }
+}
+```
+
+Key idea: every time you encounter an unvisited node, you have discovered a **new component**. DFS/BFS marks the entire component, so the outer loop only increments once per component.
+
+Your `count-connected-components` solution uses exactly this pattern.
+
+### Grid = graph
+
+Signal: Grid with islands, regions, connected cells, or neighboring cells.
+
+Treat every cell as a graph node and the four directions as edges:
+
+```java
+int[][] dirs = {
+    {1, 0}, {-1, 0},
+    {0, 1}, {0, -1}
+};
+```
+
+Typical DFS:
+
+```java
+int dfs(int[][] grid, int r, int c) {
+    if (r < 0 || r >= grid.length ||
+        c < 0 || c >= grid[0].length ||
+        grid[r][c] == 0) {
+        return 0;
+    }
+
+    grid[r][c] = 0; // mark visited
+
+    return 1
+        + dfs(grid, r + 1, c)
+        + dfs(grid, r - 1, c)
+        + dfs(grid, r, c + 1)
+        + dfs(grid, r, c - 1);
+}
+```
+
+Key idea: if the grid itself can be modified, using `grid[r][c] = 0` as the visited marker avoids an additional `visited[][]` array.
+
+For `count-number-of-islands`, count each new unvisited land cell as a new island. For `max-area-of-island`, return the size of the DFS instead. Your `max-area-of-island` solution uses this exact "return area from DFS" pattern.
+
+### Clone graph — DFS + HashMap
+
+Signal: "Create a deep copy/clone of a graph."
+
+The important problem is that graphs can contain **cycles**, so blindly recursively cloning neighbors can loop forever.
+
+Pattern:
+
+```java
+Map<Node, Node> map = new HashMap<>();
+
+Node cloneGraph(Node node) {
+    if (node == null) return null;
+
+    if (map.containsKey(node))
+        return map.get(node);
+
+    Node clone = new Node(node.val);
+
+    // Store BEFORE visiting neighbors.
+    map.put(node, clone);
+
+    for (Node neighbor : node.neighbors) {
+        clone.neighbors.add(cloneGraph(neighbor));
+    }
+
+    return clone;
+}
+```
+
+Key idea: **create + store the clone before recursively processing neighbors**.
+
+That gives two guarantees:
+
+1. Already-seen nodes are not cloned again.
+2. Cycles terminate because a previously seen node is returned from the map.
+
+Your `clone-graph` solution uses this exact approach.
+
+### Undirected graph cycle detection
+
+Signal: "Does this undirected graph contain a cycle?" or "Is this graph a valid tree?"
+
+When doing DFS in an undirected graph, seeing the node you came from is normal. Therefore, track the **parent**.
+
+```java
+boolean hasCycle(int node, int parent) {
+    visited[node] = true;
+
+    for (int neighbor : graph.get(node)) {
+        if (neighbor == parent)
+            continue;
+
+        if (visited[neighbor])
+            return true;
+
+        if (hasCycle(neighbor, node))
+            return true;
+    }
+
+    return false;
+}
+```
+
+Key idea:
+
+```text
+visited neighbor + neighbor != parent → cycle
+```
+
+For `valid-tree`, there are two things to verify:
+
+```text
+1. Exactly n - 1 edges
+2. Graph is connected / has no cycle
+```
+
+Your solution explicitly checks `edges.length == n - 1`, then performs DFS cycle detection while tracking the parent, and finally verifies that every node was visited.
+
+### Directed graph cycle detection — 3 states
+
+Signal: Dependencies / prerequisites / "can I finish all tasks?"
+
+Use three states:
+
+```text
+0 = not visited
+1 = currently in DFS path
+2 = completely processed
+```
+
+```java
+boolean hasCycle(int node) {
+    if (state[node] == 1) return true;  // back edge
+    if (state[node] == 2) return false;
+
+    state[node] = 1;
+
+    for (int next : graph.get(node)) {
+        if (hasCycle(next))
+            return true;
+    }
+
+    state[node] = 2;
+    return false;
+}
+```
+
+Key idea: encountering a node in state `1` means we reached a node that is **already in the current recursion path**, which means there is a directed cycle.
+
+For `course-schedule`:
+
+```text
+course A requires B
+B → A
+```
+
+A cycle such as:
+
+```text
+A → B → C → A
+```
+
+means the prerequisites can never be completed.
+
+Your `course-schedule` implementation uses this exact 3-state DFS.
+
+### Reverse the direction when reachability is awkward
+
+Signal: "Which cells/nodes can reach multiple destinations/sources?"
+
+For `pacific-atlantic-water-flow`, the naive question is:
+
+> From each cell, can water reach both oceans?
+
+Instead, **reverse the search**:
+
+> Starting from each ocean, which cells can reach that ocean?
+
+Water normally flows from high → low. During reverse DFS, move from low → high:
+
+```text
+Ocean boundary
+      ↑
+      ↑ reverse flow
+      ↑
+  reachable cells
+```
+
+Maintain two visited matrices:
+
+```java
+boolean[][] pacific;
+boolean[][] atlantic;
+```
+
+Run DFS from all Pacific-border cells and all Atlantic-border cells, then take the intersection:
+
+```java
+if (pacific[i][j] && atlantic[i][j])
+    result.add(Arrays.asList(i, j));
+```
+
+Key idea: **when the destination is fixed and there are many possible starting points, reverse the search from the destination.**
+
+Your solution starts DFS from both ocean boundaries and intersects the two reachable sets.
+
+Repo problems: `count-number-of-islands`, `max-area-of-island`, `clone-graph`, `count-connected-components`, `course-schedule`, `pacific-atlantic-water-flow`, `valid-tree`
+
+---
+
+## Quick Recall Table
+
+| Pattern              | Trigger phrase to listen for              | Repo anchor problem                            |
+| -------------------- | ----------------------------------------- | ---------------------------------------------- |
+| Tree DFS             | "depth," "compare trees," "subtree"       | `depth-of-binary-tree`                         |
+| Tree mutation        | "invert/modify every node"                | `invert-a-binary-tree`                         |
+| Tree comparison      | "are these trees the same?"               | `same-binary-tree`                             |
+| Subtree search       | "is one tree contained in another?"       | `subtree-of-a-binary-tree`                     |
+| BST bounds           | "is this a valid BST?"                    | `valid-binary-search-tree`                     |
+| BST LCA              | "lowest common ancestor in BST"           | `lowest-common-ancestor-in-binary-search-tree` |
+| Graph traversal      | "connected," "reachable," "regions"       | `count-connected-components`                   |
+| Grid DFS             | "islands," "connected cells," "area"      | `max-area-of-island`                           |
+| Graph cloning        | "deep copy graph"                         | `clone-graph`                                  |
+| Undirected cycle     | "valid tree," "cycle in undirected graph" | `valid-tree`                                   |
+| Directed cycle       | "prerequisites," "dependencies"           | `course-schedule`                              |
+| Reverse reachability | "can reach multiple destinations"         | `pacific-atlantic-water-flow`                  |
+
 ---
 
 ## 9. Dynamic Programming (1-D and 2-D)
