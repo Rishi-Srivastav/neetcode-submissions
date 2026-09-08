@@ -243,8 +243,8 @@ boolean same(TreeNode p, TreeNode q) {
     if (p == null || q == null) return false;
     if (p.val != q.val) return false;
 
-    return same(p.left, q.left) &&
-           same(p.right, q.right);
+    return same(p.left, p.right) &&
+           same(q.left, q.right);
 }
 ```
 
@@ -679,28 +679,360 @@ for (int i = 1; i < intervals.length; i++)
 
 ---
 
-## Quick Recall Table
+## Additional Notes — Recent Solved Problems
 
-| Pattern | Trigger phrase to listen for | Repo anchor problem |
+### Kth Largest Element in an Array
+
+**Pattern:** Min-Heap of size `k`
+
+Keep only the `k` largest elements seen so far. The smallest element among them is the kth largest overall.
+
+```java
+PriorityQueue<Integer> heap = new PriorityQueue<>();
+
+for (int num : nums) {
+    heap.offer(num);
+    if (heap.size() > k)
+        heap.poll();
+}
+
+return heap.peek();
+```
+
+**Key idea:**
+
+```text
+k largest → Min-Heap
+k smallest → Max-Heap
+```
+
+**Time:** `O(n log k)`  
+**Space:** `O(k)`
+
+---
+
+### K Closest Points to Origin
+
+**Pattern:** Max-Heap of size `k`
+
+For each point, use squared Euclidean distance:
+
+```text
+distance = x² + y²
+```
+
+No square root is required because comparing `x² + y²` gives the same ordering as comparing the actual distance.
+
+Keep the `k` closest points. Since the heap is a **max-heap**, the farthest point among the current `k` is at the top and can be removed when the heap grows beyond `k`.
+
+**Key idea:**
+
+```text
+k closest → Max-Heap of size k
+```
+
+**Time:** `O(n log k)`  
+**Space:** `O(k)`
+
+---
+
+### Kth Largest Element in a Stream
+
+**Pattern:** Maintain a Min-Heap of size `k`
+
+The stream means values arrive one at a time, so maintain the same invariant after every insertion:
+
+```java
+heap.offer(val);
+if (heap.size() > k)
+    heap.poll();
+
+return heap.peek();
+```
+
+**Invariant:** the heap always contains the `k` largest values seen so far, and `peek()` is therefore the kth largest.
+
+**Important:** do not blindly remove an element before deciding whether the new value belongs in the top `k`. Insert first, then trim if necessary.
+
+**Time per add:** `O(log k)`  
+**Space:** `O(k)`
+
+---
+
+### Last Stone Weight
+
+**Pattern:** Max-Heap for repeatedly selecting the two largest values
+
+The problem repeatedly asks for the two heaviest stones, so a max-heap directly models the operation.
+
+```java
+PriorityQueue<Integer> heap =
+    new PriorityQueue<>(Collections.reverseOrder());
+
+for (int stone : stones)
+    heap.offer(stone);
+
+while (heap.size() > 1) {
+    int a = heap.poll();
+    int b = heap.poll();
+
+    if (a != b)
+        heap.offer(a - b);
+}
+```
+
+**Key idea:** when the problem repeatedly asks for the current maximum/minimum, a priority queue avoids repeatedly sorting the collection.
+
+**Time:** `O(n log n)`  
+**Space:** `O(n)`
+
+---
+
+### Jump Game II
+
+**Pattern:** Greedy range expansion / BFS levels
+
+Instead of choosing the exact next index immediately, consider the complete range reachable using the current number of jumps.
+
+Maintain:
+
+```text
+currentEnd → end of the current jump range
+farthest   → furthest position reachable from that range
+```
+
+```java
+int jumps = 0;
+int currentEnd = 0;
+int farthest = 0;
+
+for (int i = 0; i < nums.length - 1; i++) {
+    farthest = Math.max(farthest, i + nums[i]);
+
+    if (i == currentEnd) {
+        jumps++;
+        currentEnd = farthest;
+    }
+}
+```
+
+**Invariant:** while scanning the current range, `farthest` represents the best boundary that can be reached with one additional jump.
+
+**Key idea:** this is effectively BFS over ranges rather than individual paths.
+
+**Time:** `O(n)`  
+**Space:** `O(1)`
+
+---
+
+### Gas Station
+
+**Pattern:** Greedy reset after a failed prefix
+
+Convert each station into a net gain:
+
+```text
+gas[i] - cost[i]
+```
+
+If the total net gain is negative, completing the circuit is impossible.
+
+If the running tank becomes negative at station `i`, the current starting point and every station after it up to `i` cannot be a valid start. Reset the candidate to `i + 1`.
+
+```java
+int total = 0;
+int tank = 0;
+int start = 0;
+
+for (int i = 0; i < gas.length; i++) {
+    int net = gas[i] - cost[i];
+    total += net;
+    tank += net;
+
+    if (tank < 0) {
+        tank = 0;
+        start = i + 1;
+    }
+}
+
+return total >= 0 ? start : -1;
+```
+
+**Invariant:** after a negative running tank, none of the discarded stations can be a valid starting point.
+
+**Time:** `O(n)`  
+**Space:** `O(1)`
+
+---
+
+### Hand of Straights
+
+**Pattern:** Greedy + frequency map + smallest remaining value
+
+The smallest remaining card is forced to start the next group because there is no smaller remaining card that could precede it.
+
+Track frequencies and always take the smallest remaining card:
+
+```java
+TreeMap<Integer, Integer> freq = new TreeMap<>();
+
+for (int card : hand)
+    freq.put(card, freq.getOrDefault(card, 0) + 1);
+
+while (!freq.isEmpty()) {
+    int start = freq.firstKey();
+
+    for (int i = 0; i < groupSize; i++) {
+        int card = start + i;
+
+        if (!freq.containsKey(card))
+            return false;
+
+        freq.put(card, freq.get(card) - 1);
+        if (freq.get(card) == 0)
+            freq.remove(card);
+    }
+}
+
+return true;
+```
+
+**Important:** a priority queue containing only unique card values is not enough because duplicate cards matter. The frequency map represents how many copies of each value remain.
+
+**Time:** `O(n log n)` with `TreeMap`  
+**Space:** `O(n)`
+
+---
+
+### Merge Triplets to Form Target
+
+**Pattern:** Greedy filtering / eliminate dominated candidates
+
+A triplet can only be useful if it does not exceed the target in any coordinate.
+
+For target `[x, y, z]`, discard any triplet where:
+
+```text
+triplet[0] > x
+OR triplet[1] > y
+OR triplet[2] > z
+```
+
+Because merging uses coordinate-wise maximums, a value that is already greater than the target can never be reduced later.
+
+Among the valid triplets, check whether each target coordinate can be supplied exactly.
+
+**Key idea:** safely eliminate candidates that can never participate in a valid answer.
+
+**Time:** `O(n)`  
+**Space:** `O(1)`
+
+---
+
+### Partition Labels
+
+**Pattern:** Last occurrence + expanding boundary
+
+First record the last position of every character. During the scan, maintain the furthest last occurrence of every character seen in the current partition.
+
+```java
+int[] last = new int[26];
+
+for (int i = 0; i < s.length(); i++)
+    last[s.charAt(i) - 'a'] = i;
+
+List<Integer> result = new ArrayList<>();
+int start = 0;
+int end = 0;
+
+for (int i = 0; i < s.length(); i++) {
+    end = Math.max(end, last[s.charAt(i) - 'a']);
+
+    if (i == end) {
+        result.add(end - start + 1);
+        start = i + 1;
+    }
+}
+```
+
+**Invariant:** `end` is the furthest position required by any character inside the current partition.
+
+When `i == end`, every character in that partition has its final occurrence inside the partition, so it can safely be closed.
+
+**Time:** `O(n)`  
+**Space:** `O(1)` because there are only 26 lowercase letters.
+
+---
+
+### Rotting Fruit
+
+**Pattern:** Multi-source BFS
+
+All initially rotten fruits are BFS sources. Put every rotten cell into the queue before starting the BFS.
+
+Each BFS level represents one unit of time. Newly rotten adjacent fruits are added to the next level.
+
+```text
+Initial rotten cells → time 0
+          ↓
+      BFS level 1
+          ↓
+      BFS level 2
+          ↓
+         ...
+```
+
+**Invariant:** when a fruit is reached for the first time, it is reached in the minimum possible time because BFS processes cells level by level.
+
+**Key idea:** when multiple cells start spreading simultaneously, initialize the queue with **all sources**, not one source at a time.
+
+**Time:** `O(m × n)`  
+**Space:** `O(m × n)`
+
+---
+
+### Surrounded Regions
+
+**Pattern:** Boundary DFS / reverse the question
+
+Do not start by trying to identify every surrounded region. Instead, find the `O` cells that **cannot** be surrounded: the `O`s connected to the boundary.
+
+Process all boundary `O`s and mark every connected `O` as safe. Then flip every remaining `O` to `X`.
+
+```text
+Boundary O
+    ↓
+DFS/BFS all connected O's
+    ↓
+Mark them safe
+    ↓
+Flip all remaining O → X
+```
+
+**Invariant:** every boundary-connected `O` is safe and must remain `O`.
+
+**Key idea:** reverse the problem from "which regions are surrounded?" to "which regions are definitely not surrounded?"
+
+**Time:** `O(m × n)`  
+**Space:** `O(m × n)` worst case for DFS/visited state.
+
+---
+
+## Quick Recall — Recent Problems
+
+| Problem | Pattern / Trigger | Core invariant |
 |---|---|---|
-| Hashing | "pair," "duplicate," "have I seen" | two-integer-sum |
-| Stack | "matching," "nested," "valid sequence" | validate-parentheses |
-| Binary search | "sorted array," O(log n) | find-minimum-in-rotated-sorted-array |
-| Linked list | "reverse," "merge," in-place O(1) space | reverse-a-linked-list |
-| Tree DFS | binary tree anything | invert-a-binary-tree |
-| Heap | "top k," "running median" | find-median-in-a-data-stream |
-| Backtracking | "all combinations/paths," grid search | combination-target-sum |
-| Graph DFS/BFS | grid regions, dependencies, connectivity | course-schedule |
-| 1-D DP | "ways to," "min/max ending at i" | house-robber |
-| 2-D DP | two strings/sequences compared | longest-common-subsequence |
-| Greedy/intervals | "schedule," "overlap," "min rooms" | meeting-schedule |
-
-## How to use this for memorization
-
-1. Cover the template, look only at the problem name — write the template from memory.
-2. For each pattern, be able to say out loud in one sentence *why* that data structure/technique fits (the "signal" row) — that's what actually gets tested in an interview, recognizing the pattern from an unfamiliar problem statement, not reciting code.
-3. Weakest clusters to drill again based on repo coverage: **Greedy/intervals** (only 1 problem) and **advanced graphs / Dijkstra / MST** (not represented at all — worth adding a couple of NeetCode's "Advanced Graphs" problems before an interview loop that's graph-heavy).
-
+| `kth-largest-element-in-an-array` | Min-heap size `k` | Heap contains k largest values |
+| `k-closest-points-to-origin` | Max-heap size `k` | Heap contains k closest points |
+| `kth-largest-integer-in-a-stream` | Min-heap size `k` | `peek()` is kth largest |
+| `last-stone-weight` | Max-heap | Repeatedly get two largest |
+| `jump-game-ii` | Greedy range / BFS levels | `farthest` is best next boundary |
+| `gas-station` | Greedy reset | Failed prefix cannot be a valid start |
+| `hand-of-straights` | Smallest remaining is forced | Smallest card starts next group |
+| `merge-triplets-to-form-target` | Safe filtering | Discard values that exceed target |
+| `partition-labels` | Last occurrence boundary | Close partition when `i == end` |
+| `rotting-fruit` | Multi-source BFS | First arrival is minimum time |
+| `surrounded-regions` | Boundary reachability | Boundary-connected `O` is safe |
 
 
 # Tutorial Reference
