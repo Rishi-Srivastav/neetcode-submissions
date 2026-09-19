@@ -1034,6 +1034,204 @@ Flip all remaining O → X
 | `rotting-fruit` | Multi-source BFS | First arrival is minimum time |
 | `surrounded-regions` | Boundary reachability | Boundary-connected `O` is safe |
 
+## 11. Monotonic Stack Patterns 
+Here are interview-ready notes for the four fundamental Monotonic Stack patterns: NGE, PGE, NSE, PSE.
+Monotonic Stack — NGE / PGE / NSE / PSE
+These four problems are essentially the same pattern. The only things that change are:
+Direction → Previous vs Next
+Comparison → Greater vs Smaller
+Stack monotonicity
+1. Quick Cheat Sheet
+Problem	Meaning	Scan	Stack condition	Stack type
+NGE	Next Greater Element	Right → Left	Pop <= current	Decreasing
+PGE	Previous Greater Element	Left → Right	Pop <= current	Decreasing
+NSE	Next Smaller Element	Right → Left	Pop >= current	Increasing
+PSE	Previous Smaller Element	Left → Right	Pop >= current	Increasing
+The golden rule
+Greater → remove smaller/equal elements
+while (!stack.isEmpty() && arr[stack.peek()] <= arr[i])
+    stack.pop();
+Smaller → remove greater/equal elements
+while (!stack.isEmpty() && arr[stack.peek()] >= arr[i])
+    stack.pop();
+Then:
+answer = stack.isEmpty() ? -1 : arr[stack.peek()];
+2. NGE — Next Greater Element
+Definition
+For every element, find the first element to its right that is strictly greater.
+Example:
+arr = [4, 5, 2, 10, 8]
+
+NGE = [5, 10, 10, -1, -1]
+For 4 → next greater is 5.
+For 5 → next greater is 10.
+For 2 → next greater is 10.
+For 10 → nothing greater → -1.
+Approach
+Scan right → left.
+class Solution {
+    public int[] nextGreater(int[] arr) {
+        int n = arr.length;
+        int[] res = new int[n];
+
+        Stack<Integer> stack = new Stack<>();
+
+        for (int i = n - 1; i >= 0; i--) {
+
+            while (!stack.isEmpty() &&
+                   arr[stack.peek()] <= arr[i]) {
+                stack.pop();
+            }
+
+            res[i] = stack.isEmpty() ? -1 : arr[stack.peek()];
+
+            stack.push(i);
+        }
+
+        return res;
+    }
+}
+Pattern
+Right → Left
+
+while top <= current
+    pop
+
+answer = top
+push current
+3. PGE — Previous Greater Element
+Definition
+For every element, find the first element to its left that is strictly greater.
+Example:
+arr = [10, 4, 2, 20, 40, 12, 30]
+
+PGE = [-1, 10, 4, -1, -1, 40, 40]
+Approach
+Scan left → right.
+class Solution {
+    public int[] previousGreater(int[] arr) {
+        int n = arr.length;
+        int[] res = new int[n];
+
+        Stack<Integer> stack = new Stack<>();
+
+        for (int i = 0; i < n; i++) {
+
+            while (!stack.isEmpty() &&
+                   arr[stack.peek()] <= arr[i]) {
+                stack.pop();
+            }
+
+            res[i] = stack.isEmpty() ? -1 : arr[stack.peek()];
+
+            stack.push(i);
+        }
+
+        return res;
+    }
+}
+Pattern
+Left → Right
+
+while top <= current
+    pop
+
+answer = top
+push current
+Notice how PGE and NGE have the exact same comparison.
+Only the direction changes.
+4. NSE — Next Smaller Element
+Definition
+For every element, find the first element to its right that is strictly smaller.
+Example:
+arr = [4, 8, 5, 2, 25]
+
+NSE = [2, 5, 2, -1, -1]
+For 4 → 2.
+For 8 → 5.
+For 5 → 2.
+For 2 → no smaller element.
+Approach
+Scan right → left.
+But now we want smaller, so we remove elements that are >= current.
+class Solution {
+    public int[] nextSmaller(int[] arr) {
+        int n = arr.length;
+        int[] res = new int[n];
+
+        Stack<Integer> stack = new Stack<>();
+
+        for (int i = n - 1; i >= 0; i--) {
+
+            while (!stack.isEmpty() &&
+                   arr[stack.peek()] >= arr[i]) {
+                stack.pop();
+            }
+
+            res[i] = stack.isEmpty() ? -1 : arr[stack.peek()];
+
+            stack.push(i);
+        }
+
+        return res;
+    }
+}
+Pattern
+Right → Left
+
+while top >= current
+    pop
+
+answer = top
+push current
+5. PSE — Previous Smaller Element
+Definition
+For every element, find the first element to its left that is strictly smaller.
+Example:
+arr = [4, 8, 5, 2, 25]
+
+PSE = [-1, 4, 4, -1, 2]
+Approach
+Scan left → right.
+class Solution {
+    public int[] previousSmaller(int[] arr) {
+        int n = arr.length;
+        int[] res = new int[n];
+
+        Stack<Integer> stack = new Stack<>();
+
+        for (int i = 0; i < n; i++) {
+
+            while (!stack.isEmpty() &&
+                   arr[stack.peek()] >= arr[i]) {
+                stack.pop();
+            }
+
+            res[i] = stack.isEmpty() ? -1 : arr[stack.peek()];
+
+            stack.push(i);
+        }
+
+        return res;
+    }
+}
+Pattern
+Left → Right
+
+while top >= current
+    pop
+
+answer = top
+push current
+
+Memorize this:
+Direction
+Previous → Left → Right
+Next     → Right → Left
+Comparison
+Greater → pop <=
+Smaller → pop >=
+That's basically the entire pattern.
 
 # Tutorial Reference
 ## What is this?
